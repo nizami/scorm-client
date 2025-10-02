@@ -2,7 +2,7 @@ import {convertMillisecondsIntoSCORM2004Time} from '#lib';
 import {ScormApiWrapper} from './scorm-api-wrapper';
 import {PositiveInteger} from './scorm-cmi-element.model';
 
-export class ScormSession {
+export class ScormSession<T = unknown> {
   private startSessionTime: Date | null = null;
   private isDisposed = false;
   private isCompleted = false;
@@ -11,7 +11,7 @@ export class ScormSession {
    * @param minPassedScore Range 0..1
    */
   constructor(
-    private readonly scorm: ScormApiWrapper,
+    private readonly scormWrapper: ScormApiWrapper,
     private isAssessment: boolean,
     private minPassedScore: PositiveInteger,
   ) {}
@@ -25,18 +25,18 @@ export class ScormSession {
     }
 
     this.startSessionTime = new Date();
-    this.scorm.initialize();
+    this.scormWrapper.initialize();
 
-    const completionStatus = this.scorm.getValue('cmi.completion_status');
+    const completionStatus = this.scormWrapper.getValue('cmi.completion_status');
 
     if (completionStatus === 'unknown') {
-      this.scorm.setValue('cmi.success_status', 'unknown');
-      this.scorm.setValue('cmi.completion_status', 'incomplete');
+      this.scormWrapper.setValue('cmi.success_status', 'unknown');
+      this.scormWrapper.setValue('cmi.completion_status', 'incomplete');
     } else if (completionStatus === 'completed') {
       this.isCompleted = true;
     }
 
-    this.scorm.commit();
+    this.scormWrapper.commit();
   }
 
   /**
@@ -50,25 +50,25 @@ export class ScormSession {
     this.isCompleted = true;
 
     const rawScore = Math.round(score * 100);
-    this.scorm.setValue('cmi.score.raw', rawScore);
-    this.scorm.setValue('cmi.score.min', 0);
-    this.scorm.setValue('cmi.score.max', 100);
+    this.scormWrapper.setValue('cmi.score.raw', rawScore);
+    this.scormWrapper.setValue('cmi.score.min', 0);
+    this.scormWrapper.setValue('cmi.score.max', 100);
 
     const scaledScore = Math.round(score * 100) / 100;
-    this.scorm.setValue('cmi.score.scaled', scaledScore);
+    this.scormWrapper.setValue('cmi.score.scaled', scaledScore);
 
     if (this.isAssessment) {
       if (score >= this.minPassedScore) {
-        this.scorm.setValue('cmi.success_status', 'passed');
+        this.scormWrapper.setValue('cmi.success_status', 'passed');
       } else {
-        this.scorm.setValue('cmi.success_status', 'failed');
+        this.scormWrapper.setValue('cmi.success_status', 'failed');
       }
     } else {
-      this.scorm.setValue('cmi.success_status', 'unknown');
+      this.scormWrapper.setValue('cmi.success_status', 'unknown');
     }
 
-    this.scorm.setValue('cmi.completion_status', 'completed');
-    this.scorm.commit();
+    this.scormWrapper.setValue('cmi.completion_status', 'completed');
+    this.scormWrapper.commit();
   }
 
   dispose(): void {
@@ -80,18 +80,18 @@ export class ScormSession {
     const totalMilliseconds = new Date().getTime() - this.startSessionTime.getTime();
     const scormTime = convertMillisecondsIntoSCORM2004Time(totalMilliseconds);
 
-    this.scorm.setValue('cmi.session_time', scormTime);
+    this.scormWrapper.setValue('cmi.session_time', scormTime);
 
     if (this.isCompleted) {
-      this.scorm.setValue('cmi.exit', '');
-      this.scorm.setValue('adl.nav.request', 'exitAll');
+      this.scormWrapper.setValue('cmi.exit', '');
+      this.scormWrapper.setValue('adl.nav.request', 'exitAll');
     } else {
-      this.scorm.setValue('cmi.exit', 'suspend');
-      this.scorm.setValue('adl.nav.request', 'suspendAll');
+      this.scormWrapper.setValue('cmi.exit', 'suspend');
+      this.scormWrapper.setValue('adl.nav.request', 'suspendAll');
     }
 
-    this.scorm.commit();
-    this.scorm.terminate();
+    this.scormWrapper.commit();
+    this.scormWrapper.terminate();
   }
 
   /**
@@ -103,17 +103,46 @@ export class ScormSession {
     }
 
     const value = Math.round(progress * 100) / 100;
-    this.scorm.setValue('cmi.progress_measure', value);
-    this.scorm.commit();
+    this.scormWrapper.setValue('cmi.progress_measure', value);
+    this.scormWrapper.commit();
   }
 
   getLocation(): string | null {
-    return this.scorm.getValue('cmi.location');
+    return this.scormWrapper.getValue('cmi.location');
   }
 
   setLocation(location: string): void {
-    this.scorm.setValue('cmi.location', location);
-    this.scorm.commit();
+    this.scormWrapper.setValue('cmi.location', location);
+    this.scormWrapper.commit();
+  }
+
+  getData(): T | null {
+    const result = this.scormWrapper.getValue('cmi.suspend_data');
+
+    if (!result) {
+      return null;
+    }
+
+    const object = JSON.parse(result);
+
+    if (object.data == null) {
+      return null;
+    }
+
+    return object.data;
+  }
+
+  setData(data: T | null): void {
+    if (data == null) {
+      this.scormWrapper.setValue('cmi.suspend_data', '');
+
+      return;
+    }
+
+    const object = {data};
+    const json = JSON.stringify(object);
+    this.scormWrapper.setValue('cmi.suspend_data', json);
+    this.scormWrapper.commit();
   }
 
   private hasError(): boolean {
