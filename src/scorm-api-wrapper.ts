@@ -1,8 +1,10 @@
-import { ScormApiScanner } from './scorm-api-scanner';
+import {ScormApiScanner} from './scorm-api-scanner';
 import {
-  ReadScormCmiElementTypeMap,
+  CmiReadKeyToValueMap,
+  CmiReadKeyValuePair,
+  CmiWriteKeyToValueMap,
+  CmiWriteKeyValuePair,
   Scorm2004Api,
-  WriteScormCmiElementTypeMap,
 } from './scorm-cmi-element.model';
 
 export class ScormApiWrapper {
@@ -14,9 +16,7 @@ export class ScormApiWrapper {
     this.api = this.scanner.getScormApi();
 
     if (this.api == null) {
-      console.error(
-        'Could not establish a connection with the LMS.\n\nYour results may not be recorded.'
-      );
+      console.error('Could not establish a connection with the LMS.\n\nYour results may not be recorded.');
     }
   }
 
@@ -35,7 +35,7 @@ export class ScormApiWrapper {
     }
 
     this.printLastError(
-      'Could not initialize communication with the LMS.\n\nYour results may not be recorded.'
+      'Could not initialize communication with the LMS.\n\nYour results may not be recorded.',
     );
   }
 
@@ -54,13 +54,13 @@ export class ScormApiWrapper {
     }
 
     this.printLastError(
-      'Could not terminate communication with the LMS.\n\nYour results may not be recorded.'
+      'Could not terminate communication with the LMS.\n\nYour results may not be recorded.',
     );
   }
 
-  getValue<T extends keyof ReadScormCmiElementTypeMap>(
-    element: T
-  ): ReadScormCmiElementTypeMap[T] | null {
+  getValue<Element extends CmiReadKeyValuePair['element']>(
+    element: Element,
+  ): CmiReadKeyToValueMap[Element] | null {
     if (!this.api || !this.initialized || this.terminated) {
       return null;
     }
@@ -72,12 +72,12 @@ export class ScormApiWrapper {
       this.printLastError('Could not retrieve a value from the LMS.');
     }
 
-    return result as ReadScormCmiElementTypeMap[T];
+    return result as CmiReadKeyToValueMap[Element];
   }
 
-  setValue<T extends keyof WriteScormCmiElementTypeMap>(
-    element: T,
-    value: WriteScormCmiElementTypeMap[T]
+  setValue<Element extends CmiWriteKeyValuePair['element']>(
+    element: Element,
+    value: CmiWriteKeyToValueMap[Element],
   ): void {
     if (!this.api || !this.initialized || this.terminated) {
       return;
@@ -87,9 +87,7 @@ export class ScormApiWrapper {
     // console.log(`SetValue ${element} = ${value} with result: ${result}`);
 
     if (!toBoolean(result)) {
-      this.printLastError(
-        'Could not store a value in the LMS.\n\nYour results may not be recorded.'
-      );
+      this.printLastError('Could not store a value in the LMS.\n\nYour results may not be recorded.');
     }
   }
 
