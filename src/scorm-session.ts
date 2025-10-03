@@ -32,11 +32,10 @@ export class ScormSession<T = unknown> {
     if (completionStatus === 'unknown') {
       this.scormWrapper.setValue('cmi.success_status', 'unknown');
       this.scormWrapper.setValue('cmi.completion_status', 'incomplete');
+      this.scormWrapper.commit();
     } else if (completionStatus === 'completed') {
       this.isCompleted = true;
     }
-
-    this.scormWrapper.commit();
   }
 
   /**
@@ -116,7 +115,7 @@ export class ScormSession<T = unknown> {
     this.scormWrapper.commit();
   }
 
-  getData(): T | null {
+  getSuspendData(): T | null {
     const result = this.scormWrapper.getValue('cmi.suspend_data');
 
     if (!result) {
@@ -132,7 +131,7 @@ export class ScormSession<T = unknown> {
     return object.data;
   }
 
-  setData(data: T | null): void {
+  setSuspendData(data: T | null): void {
     if (data == null) {
       this.scormWrapper.setValue('cmi.suspend_data', '');
 
