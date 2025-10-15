@@ -27,10 +27,8 @@ export class ScormApiWrapper {
 
     const result = this.api.Initialize('');
 
-      console.log('LMS Initialized before ' + result);
     if (toBoolean(result)) {
       this.initialized = true;
-      console.log('LMS Initialized');
 
       return;
     }
