@@ -5,7 +5,6 @@ import {PositiveInteger} from './scorm-cmi-element.model';
 export class ScormSession<T = unknown> {
   private startSessionTime: Date | null = null;
   private isDisposed = false;
-  private isCompleted = false;
 
   /**
    * @param minPassedScore Range 0..1
@@ -14,7 +13,9 @@ export class ScormSession<T = unknown> {
     private readonly scormWrapper: ScormApiWrapper,
     private isAssessment: boolean,
     private minPassedScore: PositiveInteger,
-  ) {}
+  ) {
+    this.scormWrapper.initialize();
+  }
 
   /**
    * @returns Current location
@@ -25,16 +26,12 @@ export class ScormSession<T = unknown> {
     }
 
     this.startSessionTime = new Date();
-    this.scormWrapper.initialize();
-
     const completionStatus = this.scormWrapper.getValue('cmi.completion_status');
 
     if (completionStatus === 'unknown') {
       this.scormWrapper.setValue('cmi.success_status', 'unknown');
       this.scormWrapper.setValue('cmi.completion_status', 'incomplete');
       this.scormWrapper.commit();
-    } else if (completionStatus === 'completed') {
-      this.isCompleted = true;
     }
   }
 
@@ -45,8 +42,6 @@ export class ScormSession<T = unknown> {
     if (this.hasError()) {
       return;
     }
-
-    this.isCompleted = true;
 
     const rawScore = Math.round(score * 100);
     this.scormWrapper.setValue('cmi.score.raw', rawScore);
@@ -70,6 +65,10 @@ export class ScormSession<T = unknown> {
     this.scormWrapper.commit();
   }
 
+  isCompleted(): boolean {
+    return this.scormWrapper.getValue('cmi.completion_status') === 'completed';
+  }
+
   dispose(): void {
     if (this.isDisposed || !this.startSessionTime) {
       return;
@@ -81,7 +80,7 @@ export class ScormSession<T = unknown> {
 
     this.scormWrapper.setValue('cmi.session_time', scormTime);
 
-    if (this.isCompleted) {
+    if (this.isCompleted()) {
       this.scormWrapper.setValue('cmi.exit', '');
       this.scormWrapper.setValue('adl.nav.request', 'exitAll');
     } else {
@@ -151,7 +150,7 @@ export class ScormSession<T = unknown> {
       return true;
     }
 
-    if (this.isCompleted) {
+    if (this.isCompleted()) {
       console.error('This course is already completed.');
 
       return true;
